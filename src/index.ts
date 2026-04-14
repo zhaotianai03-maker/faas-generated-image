@@ -1,4 +1,4 @@
-import { FieldType, fieldDecoratorKit, FormItemComponent, FieldExecuteCode } from 'dingtalk-docs-cool-app';
+import { FieldType, fieldDecoratorKit, FormItemComponent, FieldExecuteCode, AuthorizationType } from 'dingtalk-docs-cool-app';
 const { t } = fieldDecoratorKit;
 
 fieldDecoratorKit.setDomainList(['dingding-faas.surfin.sg', 'ai-table-oss.oss-cn-beijing.aliyuncs.com']);
@@ -12,7 +12,65 @@ fieldDecoratorKit.setDecorator({
       'aspect_ratio': '宽高比例',
       'resolution': '倍率',
       'temperature': '温度',
-      'api_key': 'API 密钥',
+      'error_no_image': '未找到参考图片，请确保选择的字段中包含图片附件',
+      'error_generation_failed': '图片生成失败',
+      'error_validation_failed': '参数验证失败',
+      'error_validation_check': '参数验证失败，请检查输入参数',
+      'error_request_failed': '请求参数错误',
+      'error_image_download': '参考图片下载失败',
+      'error_gemini_api': 'AI 图片生成服务异常，请稍后重试',
+      'error_oss_upload': '图片上传失败，请稍后重试',
+      'error_internal_server': '服务器内部错误，请稍后重试',
+      'error_server_failed': '服务器处理失败',
+      'error_http': '服务返回错误',
+      'error_call_failed': '调用图片生成服务失败',
+      'error_timeout': '请求超时，图片生成可能需要较长时间，请稍后重试',
+      'error_network': '网络连接失败，请检查网络或稍后重试',
+      'error_request': '请求失败',
+    },
+    'en-US': {
+      'ref_image': 'Reference Image',
+      'ai_instruction': 'Custom AI Task Instruction',
+      'aspect_ratio': 'Aspect Ratio',
+      'resolution': 'Resolution',
+      'temperature': 'Temperature',
+      'error_no_image': 'No reference image found',
+      'error_generation_failed': 'Image generation failed',
+      'error_validation_failed': 'Parameter validation failed',
+      'error_validation_check': 'Parameter validation failed',
+      'error_request_failed': 'Request parameter error',
+      'error_image_download': 'Reference image download failed',
+      'error_gemini_api': 'AI image generation service error',
+      'error_oss_upload': 'Image upload failed',
+      'error_internal_server': 'Internal server error',
+      'error_server_failed': 'Server processing failed',
+      'error_http': 'Service returned error',
+      'error_call_failed': 'Failed to call image generation service',
+      'error_timeout': 'Request timeout',
+      'error_network': 'Network connection failed',
+      'error_request': 'Request failed',
+    },
+    'ja-JP': {
+      'ref_image': '参考画像',
+      'ai_instruction': 'カスタムAIタスク指示',
+      'aspect_ratio': 'アスペクト比',
+      'resolution': '解像度',
+      'temperature': '温度',
+      'error_no_image': '参考画像が見つかりません',
+      'error_generation_failed': '画像生成に失敗しました',
+      'error_validation_failed': 'パラメータ検証に失敗しました',
+      'error_validation_check': 'パラメータ検証に失敗しました',
+      'error_request_failed': 'リクエストパラメータエラー',
+      'error_image_download': '参考画像のダウンロードに失敗しました',
+      'error_gemini_api': 'AI画像生成サービスエラー',
+      'error_oss_upload': '画像のアップロードに失敗しました',
+      'error_internal_server': 'サーバー内部エラー',
+      'error_server_failed': 'サーバー処理に失敗しました',
+      'error_http': 'サービスがエラーを返しました',
+      'error_call_failed': '画像生成サービスの呼び出しに失敗しました',
+      'error_timeout': 'リクエストタイムアウト',
+      'error_network': 'ネットワーク接続に失敗しました',
+      'error_request': 'リクエストに失敗しました',
     },
   },
   formItems: [
@@ -102,24 +160,22 @@ fieldDecoratorKit.setDecorator({
       validator: {
         required: true,
       }
-    },
-    {
-      key: 'apiKey',
-      label: t('api_key'),
-      component: FormItemComponent.Textarea,
-      props: {
-        placeholder: '请输入 API 密钥',
-      },
-      validator: {
-        required: true,
-      }
     }
   ],
+  authorizations: {
+    id: 'api_auth',
+    platform: 'AI图片生成服务',
+    type: AuthorizationType.HeaderBearerToken,
+    required: true,
+    instructionsUrl: "https://github.com/your-repo/docs",
+    label: 'API 密钥授权',
+    tooltips: '请输入您的 API 密钥以使用 AI 图片生成服务'
+  },
   resultType: {
     type: FieldType.Attachment,
   },
-  execute: async (context, formData: { refImage: { url: string, tmp_url: string, name: string, type: string }[][], aiInstruction: string, aspectRatio: string, resolution: string, temperature: string, apiKey: string }) => {
-    const { refImage, aiInstruction, aspectRatio, resolution, temperature, apiKey } = formData;
+  execute: async (context, formData: { refImage: { url: string, tmp_url: string, name: string, type: string }[][], aiInstruction: string, aspectRatio: string, resolution: string, temperature: string }) => {
+    const { refImage, aiInstruction, aspectRatio, resolution, temperature } = formData;
     
     console.log('=== 开始执行 AI 图片生成 ===');
     console.log('接收到的 formData:', JSON.stringify(formData, null, 2));
@@ -152,14 +208,13 @@ fieldDecoratorKit.setDecorator({
     console.log('宽高比例:', aspectRatio);
     console.log('倍率:', resolution);
     console.log('温度:', temperature);
-    console.log('API 密钥:', apiKey ? `${apiKey.substring(0, 10)}...` : '未提供');
     console.log('');
     
     if (imageUrls.length === 0) {
       console.log('❌ 没有找到任何图片 URL');
       return {
         code: FieldExecuteCode.Error,
-        errorMessage: '未找到参考图片，请确保选择的字段中包含图片附件',
+        errorMessage: t('error_no_image'),
       };
     }
     
@@ -181,10 +236,9 @@ fieldDecoratorKit.setDecorator({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-API-Key': apiKey,
         },
         body: JSON.stringify(requestBody),
-      });
+      }, 'api_auth');
       
       console.log('响应状态码:', response.status);
       const responseData = await response.json();
@@ -207,7 +261,7 @@ fieldDecoratorKit.setDecorator({
       
       console.log('❌ 服务返回失败');
       
-      let errorMessage = '图片生成失败';
+      let errorMessage = t('error_generation_failed');
       
       if (response.status === 422) {
         console.log('参数验证错误 (422)');
@@ -216,20 +270,20 @@ fieldDecoratorKit.setDecorator({
             const field = err.loc ? err.loc.join('.') : 'unknown';
             return `${field}: ${err.msg}`;
           }).join('; ');
-          errorMessage = `参数验证失败: ${errors}`;
+          errorMessage = `${t('error_validation_failed')}: ${errors}`;
         } else {
-          errorMessage = '参数验证失败，请检查输入参数';
+          errorMessage = t('error_validation_check');
         }
       } else if (response.status === 400) {
         console.log('客户端错误 (400)');
         if (responseData.detail?.error) {
           const error = responseData.detail.error;
-          errorMessage = error.message || '请求参数错误';
+          errorMessage = error.message || t('error_request_failed');
           if (error.code === 'IMAGE_DOWNLOAD_ERROR') {
-            errorMessage = `参考图片下载失败: ${error.message}`;
+            errorMessage = `${t('error_image_download')}: ${error.message}`;
           }
         } else {
-          errorMessage = '请求参数错误';
+          errorMessage = t('error_request_failed');
         }
       } else if (response.status === 500) {
         console.log('服务器错误 (500)');
@@ -239,52 +293,57 @@ fieldDecoratorKit.setDecorator({
           
           switch (errorCode) {
             case 'GEMINI_API_ERROR':
-              errorMessage = 'AI 图片生成服务异常，请稍后重试';
+              errorMessage = t('error_gemini_api');
               break;
             case 'OSS_UPLOAD_ERROR':
-              errorMessage = '图片上传失败，请稍后重试';
+              errorMessage = t('error_oss_upload');
               break;
             case 'INTERNAL_SERVER_ERROR':
-              errorMessage = '服务器内部错误，请稍后重试';
+              errorMessage = t('error_internal_server');
               break;
             default:
-              errorMessage = error.message || '服务器处理失败';
+              errorMessage = error.message || t('error_server_failed');
           }
           
           console.log(`错误代码: ${errorCode}`);
           console.log(`错误信息: ${error.message}`);
         } else {
-          errorMessage = '服务器内部错误，请稍后重试';
+          errorMessage = t('error_internal_server');
         }
       } else {
-        errorMessage = responseData.message || responseData.detail?.error?.message || `服务返回错误 (HTTP ${response.status})`;
+        errorMessage = responseData.message || responseData.detail?.error?.message || `${t('error_http')} (HTTP ${response.status})`;
       }
       
       return {
         code: FieldExecuteCode.Error,
         errorMessage: errorMessage,
-        extra: responseData,
+        extra: {
+          status: response.status,
+          errorCode: responseData.detail?.error?.code || 'UNKNOWN_ERROR',
+        },
       };
       
     } catch (error) {
       console.log('❌ 请求异常:', error);
       
-      let errorMessage = '调用图片生成服务失败';
+      let errorMessage = t('error_call_failed');
       
       if (error instanceof Error) {
         if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
-          errorMessage = '请求超时，图片生成可能需要较长时间，请稍后重试';
+          errorMessage = t('error_timeout');
         } else if (error.message.includes('network') || error.message.includes('ECONNREFUSED')) {
-          errorMessage = '网络连接失败，请检查网络或稍后重试';
+          errorMessage = t('error_network');
         } else {
-          errorMessage = `请求失败: ${error.message}`;
+          errorMessage = `${t('error_request')}: ${error.message}`;
         }
       }
       
       return {
         code: FieldExecuteCode.Error,
         errorMessage: errorMessage,
-        extra: { error: String(error) },
+        extra: {
+          errorType: error instanceof Error ? error.name : 'UnknownError',
+        },
       };
     }
   },
