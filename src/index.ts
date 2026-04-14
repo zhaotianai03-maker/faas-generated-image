@@ -73,6 +73,23 @@ fieldDecoratorKit.setDecorator({
       'error_request': 'リクエストに失敗しました',
     },
   },
+  errorMessages: {
+    'error_no_image': t('error_no_image'),
+    'error_generation_failed': t('error_generation_failed'),
+    'error_validation_failed': t('error_validation_failed'),
+    'error_validation_check': t('error_validation_check'),
+    'error_request_failed': t('error_request_failed'),
+    'error_image_download': t('error_image_download'),
+    'error_gemini_api': t('error_gemini_api'),
+    'error_oss_upload': t('error_oss_upload'),
+    'error_internal_server': t('error_internal_server'),
+    'error_server_failed': t('error_server_failed'),
+    'error_http': t('error_http'),
+    'error_call_failed': t('error_call_failed'),
+    'error_timeout': t('error_timeout'),
+    'error_network': t('error_network'),
+    'error_request': t('error_request'),
+  },
   formItems: [
     {
       key: 'refImage',
@@ -214,7 +231,7 @@ fieldDecoratorKit.setDecorator({
       console.log('❌ 没有找到任何图片 URL');
       return {
         code: FieldExecuteCode.Error,
-        errorMessage: t('error_no_image'),
+        errorMessage: 'error_no_image',
       };
     }
     
@@ -261,7 +278,7 @@ fieldDecoratorKit.setDecorator({
       
       console.log('❌ 服务返回失败');
       
-      let errorMessage = t('error_generation_failed');
+      let errorMessage = 'error_generation_failed';
       
       if (response.status === 422) {
         console.log('参数验证错误 (422)');
@@ -270,20 +287,21 @@ fieldDecoratorKit.setDecorator({
             const field = err.loc ? err.loc.join('.') : 'unknown';
             return `${field}: ${err.msg}`;
           }).join('; ');
-          errorMessage = `${t('error_validation_failed')}: ${errors}`;
+          errorMessage = 'error_validation_failed';
         } else {
-          errorMessage = t('error_validation_check');
+          errorMessage = 'error_validation_check';
         }
       } else if (response.status === 400) {
         console.log('客户端错误 (400)');
         if (responseData.detail?.error) {
           const error = responseData.detail.error;
-          errorMessage = error.message || t('error_request_failed');
           if (error.code === 'IMAGE_DOWNLOAD_ERROR') {
-            errorMessage = `${t('error_image_download')}: ${error.message}`;
+            errorMessage = 'error_image_download';
+          } else {
+            errorMessage = 'error_request_failed';
           }
         } else {
-          errorMessage = t('error_request_failed');
+          errorMessage = 'error_request_failed';
         }
       } else if (response.status === 500) {
         console.log('服务器错误 (500)');
@@ -293,25 +311,25 @@ fieldDecoratorKit.setDecorator({
           
           switch (errorCode) {
             case 'GEMINI_API_ERROR':
-              errorMessage = t('error_gemini_api');
+              errorMessage = 'error_gemini_api';
               break;
             case 'OSS_UPLOAD_ERROR':
-              errorMessage = t('error_oss_upload');
+              errorMessage = 'error_oss_upload';
               break;
             case 'INTERNAL_SERVER_ERROR':
-              errorMessage = t('error_internal_server');
+              errorMessage = 'error_internal_server';
               break;
             default:
-              errorMessage = error.message || t('error_server_failed');
+              errorMessage = 'error_server_failed';
           }
           
           console.log(`错误代码: ${errorCode}`);
           console.log(`错误信息: ${error.message}`);
         } else {
-          errorMessage = t('error_internal_server');
+          errorMessage = 'error_internal_server';
         }
       } else {
-        errorMessage = responseData.message || responseData.detail?.error?.message || `${t('error_http')} (HTTP ${response.status})`;
+        errorMessage = 'error_http';
       }
       
       return {
@@ -326,15 +344,15 @@ fieldDecoratorKit.setDecorator({
     } catch (error) {
       console.log('❌ 请求异常:', error);
       
-      let errorMessage = t('error_call_failed');
+      let errorMessage = 'error_call_failed';
       
       if (error instanceof Error) {
         if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
-          errorMessage = t('error_timeout');
+          errorMessage = 'error_timeout';
         } else if (error.message.includes('network') || error.message.includes('ECONNREFUSED')) {
-          errorMessage = t('error_network');
+          errorMessage = 'error_network';
         } else {
-          errorMessage = `${t('error_request')}: ${error.message}`;
+          errorMessage = 'error_request';
         }
       }
       
