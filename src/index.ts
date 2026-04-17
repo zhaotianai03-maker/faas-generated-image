@@ -100,7 +100,7 @@ fieldDecoratorKit.setDecorator({
         supportTypes: [FieldType.Attachment],
       },
       validator: {
-        required: true,
+        required: false,
       }
     },
     {
@@ -191,7 +191,7 @@ fieldDecoratorKit.setDecorator({
   resultType: {
     type: FieldType.Attachment,
   },
-  execute: async (context, formData: { refImage: { url: string, tmp_url: string, name: string, type: string }[][], aiInstruction: string, aspectRatio: string, resolution: string, temperature: string }) => {
+  execute: async (context, formData: { refImage?: { url: string, tmp_url: string, name: string, type: string }[][], aiInstruction: string, aspectRatio: string, resolution: string, temperature: string }) => {
     const { refImage, aiInstruction, aspectRatio, resolution, temperature } = formData;
     
     console.log('=== 开始执行 AI 图片生成 ===');
@@ -201,39 +201,38 @@ fieldDecoratorKit.setDecorator({
     const imageUrls: string[] = [];
     
     console.log('=== 收集图片 URL ===');
-    for (let i = 0; i < refImage.length; i++) {
-      const field = refImage[i];
-      console.log(`字段 ${i}:`, field);
-      
-      if (field && field.length > 0) {
-        for (let j = 0; j < field.length; j++) {
-          const attachment = field[j];
-          console.log(`  附件 ${j}:`, attachment);
-          
-          if (attachment.tmp_url) {
-            imageUrls.push(attachment.tmp_url);
-            console.log(`    ✅ 添加 tmp_url: ${attachment.tmp_url.substring(0, 100)}...`);
+    if (refImage && Array.isArray(refImage)) {
+      for (let i = 0; i < refImage.length; i++) {
+        const field = refImage[i];
+        console.log(`字段 ${i}:`, field);
+        
+        if (field && field.length > 0) {
+          for (let j = 0; j < field.length; j++) {
+            const attachment = field[j];
+            console.log(`  附件 ${j}:`, attachment);
+            
+            if (attachment.tmp_url) {
+              imageUrls.push(attachment.tmp_url);
+              console.log(`    ✅ 添加 tmp_url: ${attachment.tmp_url.substring(0, 100)}...`);
+            }
           }
         }
       }
+    } else {
+      console.log('未选择参考图片字段');
     }
     
     console.log('');
     console.log(`共收集到 ${imageUrls.length} 个图片 URL`);
+    if (imageUrls.length === 0) {
+      console.log('⚠️ 未提供参考图片，将仅使用 AI 指令生成图片');
+    }
     console.log('');
     console.log('AI 指令:', aiInstruction);
     console.log('宽高比例:', aspectRatio);
     console.log('倍率:', resolution);
     console.log('温度:', temperature);
     console.log('');
-    
-    if (imageUrls.length === 0) {
-      console.log('❌ 没有找到任何图片 URL');
-      return {
-        code: FieldExecuteCode.Error,
-        errorMessage: 'error_no_image',
-      };
-    }
     
     const requestBody = {
       image_urls: imageUrls,
@@ -258,8 +257,40 @@ fieldDecoratorKit.setDecorator({
       }, 'api_auth');
       
       console.log('响应状态码:', response.status);
-      const responseData = await response.json();
-      console.log('响应数据:', JSON.stringify(responseData, null, 2));
+      console.log('响应 Content-Type:', response.headers.get('content-type'));
+      
+      const contentType = response.headers.get('content-type');
+      let responseData: any = {};
+      
+      if (contentType && contentType.includes('application/json')) {
+        responseData = await response.json();
+        console.log('响应数据:', JSON.stringify(responseData, null, 2));
+      } else {
+        const textResponse = await response.text();
+        console.log('响应文本（非 JSON）:', textResponse.substring(0, 500));
+        
+        if (response.status === 522) {
+          console.log('❌ Cloudflare 522 错误：后端服务器连接超时');
+          return {
+            code: FieldExecuteCode.Error,
+            errorMessage: 'error_timeout',
+            extra: {
+              status: response.status,
+              message: 'Backend server connection timeout (Cloudflare 522)',
+            },
+          };
+        }
+        
+        return {
+          code: FieldExecuteCode.Error,
+          errorMessage: 'error_http',
+          extra: {
+            status: response.status,
+            contentType: contentType,
+          },
+        };
+      }
+      
       console.log('');
       
       if (response.status === 200 && responseData.success && responseData.data?.new_image_url) {
@@ -270,7 +301,7 @@ fieldDecoratorKit.setDecorator({
           code: FieldExecuteCode.Success,
           data: [{
             fileName: `generated-${Date.now()}.png`,
-            type: 'image/png',
+            type: 'image',
             url: responseData.data.new_image_url,
           }],
         };
@@ -343,6 +374,15 @@ fieldDecoratorKit.setDecorator({
       
     } catch (error) {
       console.log('❌ 请求异常:', error);
+      console.log('错误类型:', error instanceof Error ? error.constructor.name : typeof error);
+      
+      if (error instanceof Error) {
+        console.log('错误名称:', error.name);
+        console.log('错误消息:', error.message);
+        console.log('错误堆栈:', error.stack);
+      } else {
+        console.log('非标准错误对象:', JSON.stringify(error, null, 2));
+      }
       
       let errorMessage = 'error_call_failed';
       
@@ -361,6 +401,7 @@ fieldDecoratorKit.setDecorator({
         errorMessage: errorMessage,
         extra: {
           errorType: error instanceof Error ? error.name : 'UnknownError',
+          errorMessage: error instanceof Error ? error.message : String(error),
         },
       };
     }
